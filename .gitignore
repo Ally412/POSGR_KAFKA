@@ -1,0 +1,42 @@
+# Maven
+target/
+*.jar
+*.war
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+.mvn/
+mvnw
+mvnw.cmd
+
+# Spring Boot
+.DS_Store
+*.log
+*.class
+*.ctxt
+.classpath
+.project
+.settings/
+.springBeans
+.sts4-cache
+bin/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.swp
+*.swo
+
+# Database
+*.h2.db
+
+# Docker
+.docker/
+
+# Environment
+.env
+.env.local
