@@ -16,7 +16,7 @@
 - Dependencies (Boot 4 names): `spring-boot-starter-webmvc`, `spring-boot-starter-data-jpa`,
   PostgreSQL driver, `spring-boot-starter-kafka`, `spring-boot-starter-flyway`, Lombok, Validation
 - Project structure and package organization (feature-based: `animal/`, `adoption/`, `medical/`, `event/`, `config/`)
-- Basic application.yml configuration (rename the generated `application.properties`)
+- Basic `application.properties` configuration (the generated file — keep `.properties` format)
 
 ## Stage 2: Entity Design
 - Identify domain entities (Animal, Adoption, MedicalRecord, User)
