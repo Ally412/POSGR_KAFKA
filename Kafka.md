@@ -51,8 +51,12 @@
 - `[NICE]` Monitoring and alerting — **1.5 hours**
 
 ## Spring Kafka Integration
+> **Boot 4:** dependency is `spring-boot-starter-kafka` (not the bare `spring-kafka`).
+> JSON (de)serialization runs on **Jackson 3** (`tools.jackson.*`) — tutorials showing
+> `com.fasterxml.jackson.*` imports for `JsonSerializer`/`JsonDeserializer` are Boot 3 era; adapt them.
 - `[CORE]` @KafkaListener annotation — **1 hour**
 - `[CORE]` KafkaTemplate for sending — **1 hour**
+- `[CORE]` JSON serialization with Jackson 3 (`JsonSerializer`/`JsonDeserializer`, trusted packages) — **1 hour**
 - `[CORE]` Error handling strategies — **1.5 hours**
 - `[NICE]` Message converters — **1 hour**
 - `[NICE]` Transactions in Kafka — **1.5 hours**
@@ -73,9 +77,9 @@
 
 | Priority | Hours |
 |----------|-------|
-| `[CORE]` (must do) | **~31.5 hours** |
+| `[CORE]` (must do) | **~32.5 hours** |
 | `[NICE]` (if on schedule) | **~15 hours** |
 | `[LATER]` (skip for now) | **~9 hours** |
-| **Full list** | **~55.5 hours** |
+| **Full list** | **~56.5 hours** |
 
 **Realism note:** These are *study* hours only. Add ~40-50% for Docker/Kafka setup pain and debugging consumers. Since you chose **Kafka = basics**, the `[CORE] ~31.5h` is your real target — the `[LATER]` items (Avro, Saga, event sourcing) are genuinely advanced and not needed to ship this project.

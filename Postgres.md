@@ -44,6 +44,8 @@
 - `[NICE]` JPQL and native queries — **2.5 hours**
 
 ## Database Migrations
+> **Boot 4:** dependency is `spring-boot-starter-flyway`; for PostgreSQL you also need
+> `org.flywaydb:flyway-database-postgresql` (already in `build.gradle`).
 - `[CORE]` Flyway basics — **1.5 hours**
 - `[CORE]` Version control for schema changes — **1 hour**
 - `[NICE]` Migration best practices — **1 hour**

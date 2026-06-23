@@ -1,10 +1,22 @@
 # Project Stages
 
+> **Spring Boot 4 starter cheat-sheet** — Boot 4 restructured starters. When following
+> Boot 3.x tutorials (most of them), translate names:
+>
+> | Boot 3.x (tutorials) | Boot 4 (this project) |
+> |----------------------|-----------------------|
+> | `spring-boot-starter-web` | `spring-boot-starter-webmvc` |
+> | `spring-kafka` | `spring-boot-starter-kafka` |
+> | `flyway-core` | `spring-boot-starter-flyway` |
+> | `spring-boot-starter-test` (one fat starter) | per-feature `*-test` (`...-data-jpa-test`, `...-kafka-test`, ...) |
+> | Jackson 2 (`com.fasterxml.jackson.*`) | Jackson 3 (`tools.jackson.*`) |
+
 ## Stage 1: Project Setup
-- Spring Boot project creation with Maven
-- Dependencies: Spring Web, Spring Data JPA, PostgreSQL, Kafka, Lombok, Testcontainers
-- Project structure and package organization
-- Basic application.yml configuration
+- Spring Boot 4.1 project creation with Gradle (Groovy DSL), generated via Spring Initializr
+- Dependencies (Boot 4 names): `spring-boot-starter-webmvc`, `spring-boot-starter-data-jpa`,
+  PostgreSQL driver, `spring-boot-starter-kafka`, `spring-boot-starter-flyway`, Lombok, Validation
+- Project structure and package organization (feature-based: `animal/`, `adoption/`, `medical/`, `event/`, `config/`)
+- Basic application.yml configuration (rename the generated `application.properties`)
 
 ## Stage 2: Entity Design
 - Identify domain entities (Animal, Adoption, MedicalRecord, User)
