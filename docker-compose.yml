@@ -1,0 +1,24 @@
+name: shelter
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: shelter-postgres
+    environment:
+      POSTGRES_DB: shelter
+      POSTGRES_USER: shelter
+      POSTGRES_PASSWORD: shelter
+    ports:
+      - "5432:5432"
+    volumes:
+      - shelter_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "shelter"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  shelter_data:
+
