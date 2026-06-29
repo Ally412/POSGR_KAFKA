@@ -11,9 +11,11 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -26,6 +28,8 @@ class AnimalPersistenceIT {
 
     @Autowired
     TestEntityManager entityManager;
+    @Autowired
+    AnimalRepository animalRepository;
 
     @Test
     void savesAndReadsAnimal() {
@@ -45,5 +49,26 @@ class AnimalPersistenceIT {
         assertEquals("Rex", found.getName());
         assertEquals(Species.DOG, found.getSpecies());
         assertEquals(Status.AVAILABLE, found.getStatus());
+    }
+    @Test
+    void fetchAnimalByStatus() {
+        Animal dogAvailable = persistAnimal("Buddy", Species.DOG, Status.AVAILABLE);
+        Animal catAvailable = persistAnimal("Fluffy", Species.CAT, Status.AVAILABLE);
+        Animal dogAdopted = persistAnimal("Wolfy", Species.DOG, Status.ADOPTED);
+        List<Animal> animals = animalRepository.findByStatus(Status.AVAILABLE);
+        assertEquals(2, animals.size());
+        assertThat(animals)
+                .extracting(Animal::getName)
+                .containsExactlyInAnyOrder("Buddy", "Fluffy");
+
+    }
+    private Animal persistAnimal(String name, Species species, Status status) {
+        Animal a = new Animal();
+        a.setName(name);
+        a.setSpecies(species);
+        a.setBreed("n/a");                 // fields the test doesn't care about
+        a.setIntakeDate(LocalDate.now());  // get sensible defaults, hidden away
+        a.setStatus(status);
+        return entityManager.persistAndFlush(a);
     }
 }
