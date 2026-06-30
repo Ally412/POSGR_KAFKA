@@ -52,9 +52,9 @@ class AnimalPersistenceIT {
     }
     @Test
     void fetchAnimalByStatus() {
-        Animal dogAvailable = persistAnimal("Buddy", Species.DOG, Status.AVAILABLE);
-        Animal catAvailable = persistAnimal("Fluffy", Species.CAT, Status.AVAILABLE);
-        Animal dogAdopted = persistAnimal("Wolfy", Species.DOG, Status.ADOPTED);
+        persistAnimal("Buddy", Species.DOG, Status.AVAILABLE);
+        persistAnimal("Fluffy", Species.CAT, Status.AVAILABLE);
+        persistAnimal("Wolfy", Species.DOG, Status.ADOPTED);
         List<Animal> animals = animalRepository.findByStatus(Status.AVAILABLE);
         assertEquals(2, animals.size());
         assertThat(animals)
@@ -62,12 +62,13 @@ class AnimalPersistenceIT {
                 .containsExactlyInAnyOrder("Buddy", "Fluffy");
 
     }
+
     private Animal persistAnimal(String name, Species species, Status status) {
         Animal a = new Animal();
         a.setName(name);
         a.setSpecies(species);
-        a.setBreed("n/a");                 // fields the test doesn't care about
-        a.setIntakeDate(LocalDate.now());  // get sensible defaults, hidden away
+        a.setBreed("n/a");
+        a.setIntakeDate(LocalDate.now());
         a.setStatus(status);
         return entityManager.persistAndFlush(a);
     }

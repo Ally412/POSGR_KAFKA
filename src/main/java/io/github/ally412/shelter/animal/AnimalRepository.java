@@ -24,7 +24,9 @@ public interface AnimalRepository extends JpaRepository<Animal, Long> {
     List<Animal> findIntakenBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
     @Query("SELECT a FROM Animal a ORDER BY a.intakeDate DESC")
     List<Animal> findRecentIntakes(Pageable pageable);
-    @Query("SELECT a FROM Animal a WHERE a.adoption IS NULL")
+    // NB: `a.adoption IS NULL` mistranslates to an inner join for this inverse-side
+    // @MapsId OneToOne (always empty) — use an explicit anti-join instead.
+    @Query("SELECT a FROM Animal a WHERE NOT EXISTS (SELECT ad FROM Adoption ad WHERE ad.animal = a)")
     List<Animal> findNotAdopted();
     @Query("SELECT DISTINCT a FROM Animal a JOIN a.caretakers c WHERE c.specialization = :spec")
     List<Animal> findByCaretakerSpecialization(@Param("spec") Specialization spec);
