@@ -16,6 +16,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -222,6 +223,24 @@ class AnimalRepositoryIT {
         // only Busy(3) and Medium(2), ordered busiest first; Light(1) filtered out
         assertThat(result).extracting(CaretakerLoad::name).containsExactly("Busy", "Medium");
         assertThat(result).extracting(CaretakerLoad::count).containsExactly(3L, 2L);
+    }
+
+    // ---------- #12 averageDaysInShelterBySpecies (native SQL) ----------
+    @Test
+    void averageDaysInShelterBySpeciesComputesPerSpeciesAverage() {
+        LocalDate today = LocalDate.now();
+        persistAnimal("Rex", Species.DOG, Status.AVAILABLE, today.minusDays(10));
+        persistAnimal("Bruno", Species.DOG, Status.AVAILABLE, today.minusDays(20)); // dog avg = 15
+        persistAnimal("Whiskers", Species.CAT, Status.AVAILABLE, today.minusDays(4)); // cat avg = 4
+        flushAndClear();
+
+        // Native query bypasses entity mapping: species comes back as a raw String
+        // (not the Species enum) and AVG returns a BigDecimal (not a double).
+        Map<String, BigDecimal> avgBySpecies = animalRepository.averageDaysInShelterBySpecies().stream()
+                .collect(Collectors.toMap(row -> (String) row[0], row -> (BigDecimal) row[1]));
+
+        assertThat(avgBySpecies.get("DOG")).isEqualByComparingTo("15");
+        assertThat(avgBySpecies.get("CAT")).isEqualByComparingTo("4");
     }
 
     // ---------- helpers ----------

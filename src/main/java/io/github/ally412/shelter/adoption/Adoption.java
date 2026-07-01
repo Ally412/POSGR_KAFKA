@@ -18,11 +18,11 @@ public class Adoption {
     @NotNull
     private LocalDate date;
     @OneToOne
-    @MapsId
+
+
     @JoinColumn(name = "id")
     private Animal animal;
     @ManyToOne
     @JoinColumn(name = "adopter_id")
-    private Adopter adopter ;
-
+    private Adopter adopter;
 }

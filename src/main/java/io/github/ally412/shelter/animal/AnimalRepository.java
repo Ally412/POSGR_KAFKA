@@ -42,4 +42,6 @@ public interface AnimalRepository extends JpaRepository<Animal, Long> {
             "HAVING COUNT(a) >= :min " +
             "ORDER BY COUNT(a) DESC")
     List<CaretakerLoad> findCaretakerWorkload(@Param("min") long min);
+    @Query(value = "SELECT species, AVG(CURRENT_DATE - intake_date) FROM animal GROUP BY species", nativeQuery = true)
+    List<Object[]> averageDaysInShelterBySpecies();
 }
