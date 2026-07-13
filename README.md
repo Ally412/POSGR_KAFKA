@@ -36,4 +36,49 @@ A system to manage animal shelters with:
 > tutorials still target Boot 3.x — see the starter cheat-sheet in `Stages.md`.
 
 ## Getting Started
-Day 1: Entity design and PostgreSQL setup
+
+### Prerequisites
+- JDK 21 (Temurin recommended)
+- Docker (for the local Postgres and for Testcontainers-based tests)
+
+### Run locally
+```bash
+# 1. clone
+git clone git@github.com:ally412/POSGR_KAFKA.git
+cd POSGR_KAFKA
+
+# 2. start Postgres (docker-compose)
+docker compose up -d
+
+# 3. build (also runs the tests)
+./gradlew build
+
+# 4. run the app
+./gradlew bootRun
+```
+The app starts on `http://localhost:8080`. Flyway applies migrations on startup and
+`ddl-auto=validate` checks the schema matches the JPA entities.
+
+### Run the tests
+```bash
+./gradlew test
+```
+Integration tests (`*IT`) start a throwaway Postgres via Testcontainers, so **Docker
+must be running**.
+
+## Configuration
+
+The datasource is externalized via environment variables (with local-dev defaults).
+Override these when deploying (e.g. in Kubernetes); unset, the app runs against a
+local Postgres on `localhost:5432`.
+
+| Variable      | Default     | Description        |
+|---------------|-------------|--------------------|
+| `DB_HOST`     | `localhost` | Postgres host      |
+| `DB_PORT`     | `5432`      | Postgres port      |
+| `DB_NAME`     | `shelter`   | Database name      |
+| `DB_USER`     | `shelter`   | Database username  |
+| `DB_PASSWORD` | `shelter`   | Database password  |
+
+These map to Spring's `spring.datasource.*`. In tests, Testcontainers supplies its
+own connection via `@ServiceConnection`, ignoring these.

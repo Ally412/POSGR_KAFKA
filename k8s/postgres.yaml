@@ -1,0 +1,78 @@
+# k8s/postgres.yaml
+# In-cluster PostgreSQL for the shelter app. Three objects, applied together:
+#   PVC     → durable storage so data survives pod restarts
+#   Deployment → the postgres:17 pod
+#   Service → stable DNS name "postgres" the app connects to
+# Credentials live (encrypted) in k8s/sealed-secret.yaml → unsealed to Secret
+# "postgres-secret" by the Sealed Secrets controller. Apply both:
+#   kubectl apply -f k8s/sealed-secret.yaml -f k8s/postgres.yaml
+# ---------------------------------------------------------------------------
+
+apiVersion: v1
+kind: PersistentVolumeClaim      # asks the cluster for a chunk of disk
+metadata:
+  name: postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce              # mounted read-write by a single node (fine for one DB pod)
+  resources:
+    requests:
+      storage: 1Gi               # minikube's default 'standard' StorageClass provisions this
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  replicas: 1                    # exactly one Postgres (do NOT scale a plain DB Deployment)
+  selector:
+    matchLabels:
+      app: postgres              # this Deployment manages pods with label app=postgres
+  template:
+    metadata:
+      labels:
+        app: postgres            # ← MUST match selector above AND the Service selector below
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-secret   # injects all 3 Secret keys as env vars into the pod
+          env:
+            - name: PGDATA               # store data in a SUBdirectory of the mount, not its root
+              value: /var/lib/postgresql/data/pgdata
+              # why: hostpath volumes create a lost+found dir at the root that confuses initdb
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:              # "is it ready to accept connections?" (gates traffic)
+            exec:
+              command: ["pg_isready", "-U", "shelter", "-d", "shelter"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:               # "is it still alive?" (restarts pod if it fails)
+            exec:
+              command: ["pg_isready", "-U", "shelter", "-d", "shelter"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc    # binds the mount above to the PVC we declared
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres                 # ← THIS name is the app's DB_HOST (in-cluster DNS)
+spec:
+  selector:
+    app: postgres                # routes to pods labeled app=postgres (the Deployment's pods)
+  ports:
+    - port: 5432                 # port the Service exposes
+      targetPort: 5432           # port on the pod it forwards to
+  type: ClusterIP                # internal-only (default); reachable from other pods, not your laptop

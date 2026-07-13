@@ -1,0 +1,11 @@
+# Keep the build context small & builds reproducible — don't ship host junk into the image.
+.git
+.gitignore
+build
+.gradle
+.idea
+*.iml
+k8s
+README.md
+Dockerfile
+.dockerignore
