@@ -13,14 +13,16 @@ metadata:
   labels:
     app: shelter
 spec:
-  replicas: 1
+  replicas: 3                        # stable baseline (canary steals from this total)
   selector:
     matchLabels:
       app: shelter
+      track: stable                  # this Deployment OWNS only track=stable pods
   template:
     metadata:
       labels:
-        app: shelter                 # ← matches selector above AND the Service below
+        app: shelter                 # ← Service selects on this (spans BOTH tracks)
+        track: stable                # ← distinguishes stable from canary pods
     spec:
       # Wait until Postgres accepts connections before starting the app.
       # Avoids the app crash-looping while the DB is still booting.
