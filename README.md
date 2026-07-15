@@ -82,3 +82,48 @@ local Postgres on `localhost:5432`.
 
 These map to Spring's `spring.datasource.*`. In tests, Testcontainers supplies its
 own connection via `@ServiceConnection`, ignoring these.
+
+## Deployment (Kubernetes)
+
+The app deploys to Kubernetes via manifests in `k8s/` and scripts in `scripts/`.
+It's built and tested on **minikube** (local), but the manifests and rollout logic
+are cluster-agnostic — only a few minikube-specific glue commands differ in production.
+
+### Local flow (minikube)
+
+```bash
+# once per cluster — sealed-secrets controller, ingress controller,
+# staging/production namespaces, sealed DB creds, LoadBalancer
+scripts/bootstrap.sh
+
+# ship a version: build → load into minikube → staging deploy + smoke test
+# → approval gate → production canary
+docker build -t shelter:v2 .
+minikube image load shelter:v2
+scripts/release.sh v2
+
+# to reach a LoadBalancer Service from the host (assigns its EXTERNAL-IP):
+minikube tunnel        # long-running, needs sudo — run in its own terminal
+```
+
+Canary rollout (`scripts/canary.sh`) runs two Deployments (`shelter` = stable,
+`shelter-canary` = new) behind two nginx Ingresses on the same host; it ramps the
+`canary-weight` annotation (10→20→50→100 %), health-checks each step, and rolls back
+on failure or promotes on success.
+
+### Local (minikube) vs Production
+
+Everything in `k8s/` and the rollout logic transfers unchanged. Only these local
+shortcuts swap out on a real cluster:
+
+| Concern | Local (minikube) | Production (cloud) |
+|---|---|---|
+| Ingress controller | `minikube addons enable ingress` | `helm upgrade --install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx -n ingress-nginx --create-namespace` |
+| Image delivery | `minikube image load shelter:vN` | `docker push` to a registry (e.g. `ghcr.io/ally412/shelter:vN`); manifests use the registry path |
+| External IP | `minikube tunnel` (fakes it) | cloud provisions a public IP automatically |
+| `k8s/lb.yaml` | needed (addon controller is `NodePort`) | **not needed** — the helm chart's controller Service is already `type: LoadBalancer` |
+| Ingress host | `shelter.local` + `Host:` header / `/etc/hosts` | real DNS record → the LoadBalancer's public IP |
+
+So `k8s/lb.yaml` and `minikube tunnel` are **minikube stand-ins** for what a cloud
+cluster provides out of the box. Swap the ~5 commands above (or parameterize them)
+and the same manifests + scripts run in production.
