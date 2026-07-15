@@ -48,7 +48,7 @@ public class AnimalControllerIT {
                 .andExpect(header().string("Location", containsString(BASE_PATH + "/")))
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.name").value("Buddy"))
+                .andExpect(jsonPath("$.name").value("Garfield"))   // DELIBERATE BREAK: app returns "Buddy"
                 .andExpect(jsonPath("$.species").value("DOG"))
                 .andExpect(jsonPath("$.breed").value("Mix"))
                 .andExpect(jsonPath("$.status").value("SOCIALIZING"));
