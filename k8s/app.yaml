@@ -1,0 +1,84 @@
+# k8s/app.yaml
+# The shelter Spring Boot app. Two objects:
+#   Deployment → runs the app container, wired to the in-cluster Postgres
+#   Service    → NodePort so you can reach the app from your laptop
+# Apply after Postgres is up:
+#   kubectl apply -f k8s/app.yaml
+# ---------------------------------------------------------------------------
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shelter
+  labels:
+    app: shelter
+spec:
+  replicas: 3                        # stable baseline (canary steals from this total)
+  selector:
+    matchLabels:
+      app: shelter
+      track: stable                  # this Deployment OWNS only track=stable pods
+  template:
+    metadata:
+      labels:
+        app: shelter                 # ← Service selects on this (spans BOTH tracks)
+        track: stable                # ← distinguishes stable from canary pods
+    spec:
+      # Wait until Postgres accepts connections before starting the app.
+      # Avoids the app crash-looping while the DB is still booting.
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for db; sleep 2; done']
+      containers:
+        - name: shelter
+          image: shelter:local        # built locally + loaded into minikube (see notes)
+          imagePullPolicy: IfNotPresent  # use the loaded local image; don't try a registry
+          ports:
+            - containerPort: 8080
+          env:
+            # Non-secret connection bits → plain literals
+            - name: DB_HOST
+              value: postgres          # the Postgres Service name (in-cluster DNS)
+            - name: DB_PORT
+              value: "5432"            # quotes: env values must be strings
+            # Secret bits → pulled from individual keys of postgres-secret.
+            # Note the mapping: app wants DB_USER, the Secret key is POSTGRES_USER.
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+          readinessProbe:              # is the app ready to serve? (TCP: is 8080 open?)
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 20    # Spring Boot needs time to start + run Flyway
+            periodSeconds: 5
+          livenessProbe:               # is it still alive? restart if not
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shelter                        # the STABLE Service (ingress main backend)
+spec:
+  selector:
+    app: shelter
+    track: stable                      # ← now stable-ONLY (so ingress weights are precise)
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP                      # ingress is the entry now; no NodePort needed

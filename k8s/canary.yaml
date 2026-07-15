@@ -1,0 +1,77 @@
+# k8s/canary.yaml
+# The canary Deployment — runs the NEW version alongside stable.
+# Shares the "shelter" Service (both carry app=shelter); told apart by track=canary.
+# Starts at 0 replicas; scripts/canary.sh scales it up step by step.
+# No Service here — it reuses the one from app.yaml.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shelter-canary
+  labels:
+    app: shelter
+    track: canary
+spec:
+  replicas: 0                        # starts empty; the script scales it up
+  selector:
+    matchLabels:
+      app: shelter
+      track: canary                  # owns only track=canary pods
+  template:
+    metadata:
+      labels:
+        app: shelter                 # ← Service routes to this too (shared)
+        track: canary
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for db; sleep 2; done']
+      containers:
+        - name: shelter
+          image: shelter:local        # the NEW image tag; overridden by the script
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shelter-canary                 # the CANARY Service (ingress canary backend)
+spec:
+  selector:
+    app: shelter
+    track: canary                      # canary-ONLY pods
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP

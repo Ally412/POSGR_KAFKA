@@ -1,0 +1,25 @@
+# k8s/ingress-canary.yaml
+# A SECOND Ingress for the same host as k8s/ingress.yaml, but marked as a canary.
+# nginx merges the two: it sends `canary-weight`% of requests to shelter-canary,
+# the rest to the main Ingress's backend (shelter = stable).
+# canary.sh steps the weight annotation: 0 → 10 → 20 → 50 → 100.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shelter-canary
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"          # this Ingress is a canary overlay
+    nginx.ingress.kubernetes.io/canary-weight: "0"       # start at 0%; the script ramps it up
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: shelter.local              # SAME host as the main Ingress — that's what pairs them
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: shelter-canary   # → the canary Service (new version)
+                port:
+                  number: 8080

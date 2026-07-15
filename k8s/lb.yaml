@@ -1,0 +1,27 @@
+# k8s/lb.yaml
+# A LoadBalancer fronting the nginx INGRESS CONTROLLER — the realistic production shape.
+# One external LB gets traffic into the cluster; the ingress controller behind it does
+# all host/path/canary routing. This is exactly what a cloud auto-provisions for the
+# ingress controller (minikube ships it as NodePort since it has no cloud LB).
+#
+#   internet → this LoadBalancer (L4) → nginx controller (L7) → stable / canary Services
+#
+# On minikube, `minikube tunnel` assigns the EXTERNAL-IP (else it stays <pending>).
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingress-lb
+  namespace: ingress-nginx           # lives WITH the controller it fronts
+spec:
+  type: LoadBalancer
+  selector:                          # target the nginx controller pods (not the app!)
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/component: controller
+  ports:
+    - name: http
+      port: 80
+      targetPort: http               # the controller's http port
+    - name: https
+      port: 443
+      targetPort: https              # the controller's https port
