@@ -2,8 +2,10 @@
 # One-time cluster setup for the shelter project.
 # Idempotent — safe to re-run (e.g. after `minikube delete` wipes everything).
 #   1. installs the Sealed Secrets controller (if missing)
-#   2. creates the staging + production namespaces
-#   3. seals per-namespace DB credentials into k8s/sealed-secret-<ns>.yaml
+#   2. enables the nginx ingress controller
+#   3. creates the staging + production namespaces
+#   4. seals per-namespace DB credentials into k8s/sealed-secret-<ns>.yaml
+#   5. applies the LoadBalancer that fronts the ingress controller
 #
 # Usage:  scripts/bootstrap.sh
 #         DB_PASSWORD='s3cr3t' scripts/bootstrap.sh   # override the default creds
@@ -30,7 +32,16 @@ else
   echo "✓ Sealed Secrets controller already installed"
 fi
 
-# 2 + 3. Each namespace and its own sealed secret.
+# 2. nginx ingress controller — the L7 front door (minikube ships it as an addon;
+#    on a real cluster you'd install ingress-nginx via helm/manifest instead).
+if ! kubectl get deployment ingress-nginx-controller -n ingress-nginx >/dev/null 2>&1; then
+  echo "▶ Enabling ingress addon"
+  minikube addons enable ingress
+else
+  echo "✓ ingress controller already installed"
+fi
+
+# 3 + 4. Each namespace and its own sealed secret.
 for NS in "${NAMESPACES[@]}"; do
   kubectl get ns "$NS" >/dev/null 2>&1 || kubectl create ns "$NS"
   kubectl create secret generic postgres-secret \
@@ -41,5 +52,9 @@ for NS in "${NAMESPACES[@]}"; do
     | kubeseal --format yaml > "$ROOT/k8s/sealed-secret-$NS.yaml"
   echo "✓ namespace '$NS' ready + k8s/sealed-secret-$NS.yaml sealed"
 done
+
+# 5. External LoadBalancer fronting the ingress controller.
+kubectl apply -f "$ROOT/k8s/lb.yaml"
+echo "✓ LoadBalancer applied (run 'minikube tunnel' to get its EXTERNAL-IP)"
 
 echo "✓ bootstrap complete"
