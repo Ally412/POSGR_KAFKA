@@ -73,11 +73,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: shelter
+  name: shelter                        # the STABLE Service (ingress main backend)
 spec:
   selector:
-    app: shelter                       # routes to the app pods
+    app: shelter
+    track: stable                      # ← now stable-ONLY (so ingress weights are precise)
   ports:
-    - port: 8080                       # Service port
-      targetPort: 8080                 # pod port
-  type: NodePort                       # reachable from your laptop (unlike the DB's ClusterIP)
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP                      # ingress is the entry now; no NodePort needed

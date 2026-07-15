@@ -24,6 +24,9 @@ kubectl apply -n "$NS" -f "$ROOT/k8s/postgres.yaml"
 kubectl apply -n "$NS" -f "$ROOT/k8s/app.yaml"
 kubectl set image -n "$NS" deployment/shelter shelter="shelter:$TAG"
 
+# 4b. the front door — main Ingress (routes shelter.local → stable Service)
+kubectl apply -n "$NS" -f "$ROOT/k8s/ingress.yaml"
+
 # 5. wait until both are actually ready (readiness probes gate this)
 kubectl rollout status -n "$NS" deployment/postgres --timeout=120s
 kubectl rollout status -n "$NS" deployment/shelter  --timeout=180s
