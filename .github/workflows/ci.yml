@@ -18,6 +18,11 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      # Tests boot the Spring context, which needs the RSA keys — but privateKey.pem is
+      # gitignored, so generate a throwaway keypair on the runner before building.
+      - name: Generate RSA keys for tests
+        run: bash scripts/generate-keys.sh
+
       - run: ./gradlew build
 
       - uses: actions/upload-artifact@v4

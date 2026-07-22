@@ -35,3 +35,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Certs ###
+# RSA JWT signing keys — never committed; generated per-environment by scripts/generate-keys.sh
+src/main/resources/certs/

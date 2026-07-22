@@ -14,8 +14,9 @@ echo "▶ Deploying to '$NS' with image shelter:$TAG"
 # 1. namespace exists?
 kubectl get ns "$NS" >/dev/null 2>&1 || kubectl create ns "$NS"
 
-# 2. credentials — the PER-NAMESPACE sealed secret (namespace-scoped, remember)
+# 2. credentials — the PER-NAMESPACE sealed secrets (DB creds + RSA signing keys)
 kubectl apply -n "$NS" -f "$ROOT/k8s/sealed-secret-$NS.yaml"
+kubectl apply -n "$NS" -f "$ROOT/k8s/sealed-secret-rsa-$NS.yaml"
 
 # 3. database
 kubectl apply -n "$NS" -f "$ROOT/k8s/postgres.yaml"
@@ -31,13 +32,15 @@ kubectl apply -n "$NS" -f "$ROOT/k8s/ingress.yaml"
 kubectl rollout status -n "$NS" deployment/postgres --timeout=120s
 kubectl rollout status -n "$NS" deployment/shelter  --timeout=180s
 
-# 6. smoke test — prove the API actually answers before calling it a success
+# 6. smoke test — the app is UP if it responds. With security on, an unauthenticated
+#    request now returns 401 — that still proves the app + security filter are running.
 echo "▶ Smoke test against $NS ..."
 kubectl port-forward -n "$NS" svc/shelter 18080:8080 >/tmp/pf-$NS.log 2>&1 &
 PF=$!
 trap 'kill $PF 2>/dev/null' EXIT
-if curl -fsS --retry 15 --retry-delay 1 --retry-all-errors http://localhost:18080/api/animals >/dev/null; then
-  echo "✓ $NS is healthy (GET /api/animals OK)"
-else
-  echo "✗ $NS smoke test FAILED"; exit 1
-fi
+code=$(curl -s -o /dev/null -w '%{http_code}' --retry 15 --retry-connrefused --retry-delay 1 \
+  http://localhost:18080/api/animals)
+case "$code" in
+  200|401) echo "✓ $NS is healthy (app responding, HTTP $code)" ;;
+  *)       echo "✗ $NS smoke test FAILED (HTTP $code)"; exit 1 ;;
+esac

@@ -59,6 +59,11 @@ spec:
                 secretKeyRef:
                   name: postgres-secret
                   key: POSTGRES_PASSWORD
+            # RSA signing keys → mounted as files from the rsa-keys Secret (volume below)
+            - name: RSA_PRIVATE_KEY
+              value: file:/etc/keys/privateKey.pem
+            - name: RSA_PUBLIC_KEY
+              value: file:/etc/keys/publicKey.pem
           readinessProbe:              # is the app ready to serve? (TCP: is 8080 open?)
             tcpSocket:
               port: 8080
@@ -69,6 +74,14 @@ spec:
               port: 8080
             initialDelaySeconds: 40
             periodSeconds: 10
+          volumeMounts:                # RSA keys appear as files at /etc/keys
+            - name: rsa-keys
+              mountPath: /etc/keys
+              readOnly: true
+      volumes:                         # pod-level: the rsa-keys Secret, mounted as files
+        - name: rsa-keys
+          secret:
+            secretName: rsa-keys
 ---
 apiVersion: v1
 kind: Service
