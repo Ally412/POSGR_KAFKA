@@ -47,13 +47,17 @@ A system to manage animal shelters with:
 git clone git@github.com:ally412/POSGR_KAFKA.git
 cd POSGR_KAFKA
 
-# 2. start Postgres (docker-compose)
+# 2. generate the RSA keys used to sign JWTs (the private key is gitignored,
+#    so a fresh clone must create its own — idempotent, skips if present)
+scripts/generate-keys.sh
+
+# 3. start Postgres (docker-compose)
 docker compose up -d
 
-# 3. build (also runs the tests)
+# 4. build (also runs the tests)
 ./gradlew build
 
-# 4. run the app
+# 5. run the app
 ./gradlew bootRun
 ```
 The app starts on `http://localhost:8080`. Flyway applies migrations on startup and

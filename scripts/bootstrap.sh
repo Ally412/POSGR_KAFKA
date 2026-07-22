@@ -4,7 +4,7 @@
 #   1. installs the Sealed Secrets controller (if missing)
 #   2. enables the nginx ingress controller
 #   3. creates the staging + production namespaces
-#   4. seals per-namespace DB credentials into k8s/sealed-secret-<ns>.yaml
+#   4. seals per-namespace DB credentials + RSA signing keys into k8s/sealed-secret-*.yaml
 #   5. applies the LoadBalancer that fronts the ingress controller
 #
 # Usage:  scripts/bootstrap.sh
@@ -41,7 +41,10 @@ else
   echo "✓ ingress controller already installed"
 fi
 
-# 3 + 4. Each namespace and its own sealed secret.
+# Ensure the RSA signing keys exist locally so we can seal them into the cluster.
+bash "$ROOT/scripts/generate-keys.sh"
+
+# 3 + 4. Each namespace with its own sealed secrets (DB creds + RSA signing keys).
 for NS in "${NAMESPACES[@]}"; do
   kubectl get ns "$NS" >/dev/null 2>&1 || kubectl create ns "$NS"
   kubectl create secret generic postgres-secret \
@@ -50,7 +53,12 @@ for NS in "${NAMESPACES[@]}"; do
     --from-literal=POSTGRES_PASSWORD="$DB_PASSWORD" \
     --namespace="$NS" --dry-run=client -o yaml \
     | kubeseal --format yaml > "$ROOT/k8s/sealed-secret-$NS.yaml"
-  echo "✓ namespace '$NS' ready + k8s/sealed-secret-$NS.yaml sealed"
+  kubectl create secret generic rsa-keys \
+    --from-file=privateKey.pem="$ROOT/src/main/resources/certs/privateKey.pem" \
+    --from-file=publicKey.pem="$ROOT/src/main/resources/certs/publicKey.pem" \
+    --namespace="$NS" --dry-run=client -o yaml \
+    | kubeseal --format yaml > "$ROOT/k8s/sealed-secret-rsa-$NS.yaml"
+  echo "✓ namespace '$NS' ready + DB & RSA sealed secrets"
 done
 
 # 5. External LoadBalancer fronting the ingress controller.
