@@ -50,6 +50,14 @@ public class ApiExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(NoSuchCaretakerException.class)
+    public ProblemDetail handleNoSuchCaretaker(NoSuchCaretakerException ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        pd.setTitle("Caretaker not found");
+        pd.setDetail(ex.getMessage());
+        return pd;
+    }
+
     @ExceptionHandler(DuplicateCredException.class)
     public ProblemDetail handleDuplicateCredException(DuplicateCredException ex) {
         ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.CONFLICT);
@@ -75,6 +83,14 @@ public class ApiExceptionHandler {
         ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.UNAUTHORIZED);
         pd.setTitle("Authentication failed");
         pd.setDetail("Invalid username or password");
+        return pd;
+    }
+
+    @ExceptionHandler(NoSuchAnimalException.class)
+    public ProblemDetail handleNoSuchAnimalException(NoSuchAnimalException ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        pd.setTitle("Wrong id");
+        pd.setDetail(ex.getMessage());
         return pd;
     }
 

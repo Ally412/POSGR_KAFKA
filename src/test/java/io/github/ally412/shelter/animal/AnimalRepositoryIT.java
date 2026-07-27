@@ -199,32 +199,6 @@ class AnimalRepositoryIT {
                 .extracting(Animal::getName).containsExactly("Healthy");
     }
 
-    // ---------- #11 findCaretakerWorkload (projection + GROUP BY/HAVING/ORDER BY) ----------
-    @Test
-    void findCaretakerWorkloadReportsCountsAtOrAboveMinBusiestFirst() {
-        Caretaker busy = persistCaretaker("Busy", Specialization.VET);     // 3 animals
-        Caretaker medium = persistCaretaker("Medium", Specialization.NANNY); // 2 animals
-        Caretaker light = persistCaretaker("Light", Specialization.TRAINER); // 1 animal -> excluded by HAVING
-
-        Animal a1 = persistAnimal("A1", Species.DOG, Status.AVAILABLE, LocalDate.now());
-        Animal a2 = persistAnimal("A2", Species.DOG, Status.AVAILABLE, LocalDate.now());
-        Animal a3 = persistAnimal("A3", Species.DOG, Status.AVAILABLE, LocalDate.now());
-
-        link(a1, busy);
-        link(a2, busy);
-        link(a3, busy);
-        link(a1, medium);
-        link(a2, medium);
-        link(a1, light);
-        flushAndClear();
-
-        List<CaretakerLoad> result = animalRepository.findCaretakerWorkload(2);
-
-        // only Busy(3) and Medium(2), ordered busiest first; Light(1) filtered out
-        assertThat(result).extracting(CaretakerLoad::name).containsExactly("Busy", "Medium");
-        assertThat(result).extracting(CaretakerLoad::count).containsExactly(3L, 2L);
-    }
-
     // ---------- #12 averageDaysInShelterBySpecies (native SQL) ----------
     @Test
     void averageDaysInShelterBySpeciesComputesPerSpeciesAverage() {

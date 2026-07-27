@@ -1,12 +1,10 @@
 package io.github.ally412.shelter.animal;
 
-import io.github.ally412.shelter.animal.dto.AnimalConverter;
-import io.github.ally412.shelter.animal.dto.AnimalRequest;
-import io.github.ally412.shelter.animal.dto.AnimalResponse;
-import io.github.ally412.shelter.animal.dto.BulkUpdateResponse;
-import io.github.ally412.shelter.animal.dto.StatusRequest;
+import io.github.ally412.shelter.animal.dto.*;
 import io.github.ally412.shelter.common.web.Constants;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -16,9 +14,8 @@ import java.net.URI;
 import java.util.List;
 
 @RestController
-@RequestMapping(AnimalController.BASE_PATH)
+@RequestMapping(Constants.ANIMALS)
 public class AnimalController {
-    protected static final String BASE_PATH = Constants.API + "/animals";
     private final AnimalService animalService;
 
     public AnimalController(AnimalService animalService) {
@@ -78,6 +75,13 @@ public class AnimalController {
             case NOT_FOUND -> ResponseEntity.notFound().build();
         };
     }
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<Page<AnimalResponse>> search (AnimalSearchCriteria criteria, Pageable pageable) {
+        return ResponseEntity.ok(
+                animalService.search(criteria, pageable)
+                        .map(AnimalConverter::toAnimalResponse)
 
-
+        );
+    }
 }
