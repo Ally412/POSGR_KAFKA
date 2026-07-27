@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 @WithMockUser(roles = "STAFF")   // security is on: run these as an authenticated STAFF (covers reads via hierarchy + writes)
 public class AnimalControllerIT {
-    protected static final String BASE_PATH = Constants.API + "/animals";
+    protected static final String BASE_PATH = Constants.ANIMALS;
     @Container
     @ServiceConnection
     static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17");
@@ -101,13 +101,73 @@ public class AnimalControllerIT {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    public void searchBySpeciesFiltersResults() throws Exception {
+        persistAnimal("Rex", Species.DOG, Status.AVAILABLE, LocalDate.now());
+        persistAnimal("Whiskers", Species.CAT, Status.AVAILABLE, LocalDate.now());
+        mockMvc.perform(get(BASE_PATH + "/search").param("species", "DOG"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Rex"))
+                .andExpect(jsonPath("$.content[0].species").value("DOG"));
+    }
+
+    @Test
+    public void searchByMultipleCriteriaCombinesWithAnd() throws Exception {
+        persistAnimal("Rex", Species.DOG, Status.AVAILABLE, LocalDate.now());
+        persistAnimal("Buddy", Species.DOG, Status.SOCIALIZING, LocalDate.now());
+        persistAnimal("Whiskers", Species.CAT, Status.AVAILABLE, LocalDate.now());
+        mockMvc.perform(get(BASE_PATH + "/search")
+                        .param("species", "DOG")
+                        .param("status", "AVAILABLE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Rex"));
+    }
+
+    @Test
+    public void searchWithNoCriteriaReturnsAll() throws Exception {
+        persistAnimal("Rex", Species.DOG, Status.AVAILABLE, LocalDate.now());
+        persistAnimal("Whiskers", Species.CAT, Status.AVAILABLE, LocalDate.now());
+        mockMvc.perform(get(BASE_PATH + "/search"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2));
+    }
+
+    @Test
+    public void searchByIntakeDateRange() throws Exception {
+        persistAnimal("Old", Species.DOG, Status.AVAILABLE, LocalDate.of(2026, 1, 1));
+        persistAnimal("New", Species.DOG, Status.AVAILABLE, LocalDate.of(2026, 6, 1));
+        mockMvc.perform(get(BASE_PATH + "/search")
+                        .param("intakeFrom", "2026-05-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("New"));
+    }
+
+    @Test
+    public void searchRespectsPageSize() throws Exception {
+        persistAnimal("Rex", Species.DOG, Status.AVAILABLE, LocalDate.now());
+        persistAnimal("Buddy", Species.DOG, Status.AVAILABLE, LocalDate.now());
+        persistAnimal("Max", Species.DOG, Status.AVAILABLE, LocalDate.now());
+        mockMvc.perform(get(BASE_PATH + "/search")
+                        .param("size", "2")
+                        .param("page", "0"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2));
+    }
+
     private Long persistAnimal() {
+        return persistAnimal("Buddy", Species.DOG, Status.SOCIALIZING, LocalDate.now());
+    }
+
+    private Long persistAnimal(String name, Species species, Status status, LocalDate intakeDate) {
         Animal animal = new Animal();
-        animal.setName("Buddy");
-        animal.setSpecies(Species.DOG);
+        animal.setName(name);
+        animal.setSpecies(species);
         animal.setBreed("Mix");
-        animal.setIntakeDate(LocalDate.now());
-        animal.setStatus(Status.SOCIALIZING);
+        animal.setIntakeDate(intakeDate);
+        animal.setStatus(status);
         return animalRepository.save(animal).getId();
     }
 

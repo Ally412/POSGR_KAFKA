@@ -1,8 +1,10 @@
 package io.github.ally412.shelter.animal;
 
 import io.github.ally412.shelter.care.CaretakerLoad;
+import io.github.ally412.shelter.care.MedicalRecord;
 import io.github.ally412.shelter.care.Specialization;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,7 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-public interface AnimalRepository extends JpaRepository<Animal, Long> {
+public interface AnimalRepository extends JpaRepository<Animal, Long>, JpaSpecificationExecutor<Animal> {
     @Query("SELECT a FROM Animal a WHERE a.status = :status")
     List<Animal> findByStatus(@Param("status") Status status);
 
@@ -49,13 +51,6 @@ public interface AnimalRepository extends JpaRepository<Animal, Long> {
     @Query("SELECT a FROM Animal a WHERE NOT EXISTS (SELECT m FROM MedicalRecord m WHERE m.animal = a)")
     List<Animal> findWithoutMedicalRecordsExists();
 
-    @Query("SELECT new io.github.ally412.shelter.care.CaretakerLoad(c.name, COUNT(a)) " +
-            "FROM Animal a JOIN a.caretakers c " +
-            "GROUP BY c.id " +
-            "HAVING COUNT(a) >= :min " +
-            "ORDER BY COUNT(a) DESC")
-    List<CaretakerLoad> findCaretakerWorkload(@Param("min") long min);
-
     @Query(value = "SELECT species, AVG(CURRENT_DATE - intake_date) FROM animal GROUP BY species", nativeQuery = true)
     List<Object[]> averageDaysInShelterBySpecies();
 
@@ -64,4 +59,7 @@ public interface AnimalRepository extends JpaRepository<Animal, Long> {
             "WHERE a.status = io.github.ally412.shelter.animal.Status.SOCIALIZING " +
             "AND a.intakeDate <= :cutoff")
     int updateStatusSocializingToAvailable(@Param("cutoff") LocalDate cutoff);
+
+    @Query("SELECT DISTINCT a FROM Animal a LEFT JOIN FETCH a.medicalRecords")
+    List<Animal> findAllAnimalsWithMedicalRecords();
 }

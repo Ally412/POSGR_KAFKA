@@ -2,7 +2,11 @@ package io.github.ally412.shelter.animal;
 
 import io.github.ally412.shelter.animal.dto.AnimalConverter;
 import io.github.ally412.shelter.animal.dto.AnimalRequest;
+import io.github.ally412.shelter.animal.dto.AnimalSearchCriteria;
 import io.github.ally412.shelter.common.DeleteResult;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,6 +64,16 @@ public class AnimalService {
             return DeleteResult.SUCCESS;
         }
         return DeleteResult.NOT_FOUND;
+    }
+
+    public Page<Animal> search(AnimalSearchCriteria c, Pageable pageable) {
+        Specification<Animal> spec = Specification.allOf();
+        if(c.nameFragment() != null) spec = spec.and(AnimalSpecifications.nameContains(c.nameFragment()));
+        if(c.species() != null) spec = spec.and(AnimalSpecifications.hasSpecies(c.species()));
+        if(c.status() != null) spec = spec.and(AnimalSpecifications.hasStatus(c.status()));
+        if(c.intakeFrom() != null) spec = spec.and(AnimalSpecifications.intakeFrom(c.intakeFrom()));
+        if(c.intakeTo() != null) spec = spec.and(AnimalSpecifications.intakeTo(c.intakeTo()));
+        return animalRepository.findAll(spec, pageable);
     }
 
 }
