@@ -4,6 +4,8 @@ import io.github.ally412.shelter.animal.dto.AnimalConverter;
 import io.github.ally412.shelter.animal.dto.AnimalRequest;
 import io.github.ally412.shelter.animal.dto.AnimalSearchCriteria;
 import io.github.ally412.shelter.common.DeleteResult;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -22,6 +24,7 @@ public class AnimalService {
         this.animalRepository = animalRepository;
     }
 
+    @Cacheable(value = "animals", unless = "#result == null")
     public Optional<Animal> getAnimal(Long id) {
         return animalRepository.findById(id);
     }
@@ -32,6 +35,7 @@ public class AnimalService {
         return animalRepository.save(AnimalConverter.toNewAnimal(animalRequest));
     }
 
+    @CacheEvict(value = "animals", key = "#id")
     @Transactional
     public Optional<Animal> updateAnimal(Long id, AnimalRequest animalRequest) {
         return animalRepository.findById(id)
@@ -44,6 +48,7 @@ public class AnimalService {
                 });
     }
 
+    @CacheEvict(value = "animals", key = "#id")
     @Transactional
     public Optional<Animal> updateStatus(Long id, Status status) {
         return animalRepository.findById(id)
@@ -53,10 +58,12 @@ public class AnimalService {
                 });
     }
 
+    @CacheEvict(value = "animals", allEntries = true)
     @Transactional
     public int updateStatusSocializingToAvailable() {
         return animalRepository.updateStatusSocializingToAvailable(LocalDate.now());
     }
+    @CacheEvict(value = "animals", key = "#id")
     @Transactional
     public DeleteResult deleteAnimal(Long id) {
         if(animalRepository.existsById(id)) {
