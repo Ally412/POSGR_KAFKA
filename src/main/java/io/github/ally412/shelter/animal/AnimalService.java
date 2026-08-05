@@ -4,11 +4,14 @@ import io.github.ally412.shelter.animal.dto.AnimalConverter;
 import io.github.ally412.shelter.animal.dto.AnimalRequest;
 import io.github.ally412.shelter.animal.dto.AnimalSearchCriteria;
 import io.github.ally412.shelter.common.DeleteResult;
+import io.github.ally412.shelter.messaging.AnimalAddedEvent;
+import io.github.ally412.shelter.messaging.Topics;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,9 +22,11 @@ import java.util.Optional;
 @Service
 public class AnimalService {
     private final AnimalRepository animalRepository;
+    private final KafkaTemplate<String, AnimalAddedEvent> kafkaTemplate;
 
-    public AnimalService(AnimalRepository animalRepository) {
+    public AnimalService(AnimalRepository animalRepository, KafkaTemplate<String, AnimalAddedEvent> kafkaTemplate) {
         this.animalRepository = animalRepository;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     @Cacheable(value = "animals", unless = "#result == null")
@@ -32,7 +37,10 @@ public class AnimalService {
         return animalRepository.findAll();
     }
     public Animal saveAnimal(AnimalRequest animalRequest) {
-        return animalRepository.save(AnimalConverter.toNewAnimal(animalRequest));
+        Animal saved = animalRepository.save(AnimalConverter.toNewAnimal(animalRequest));
+        AnimalAddedEvent event = new AnimalAddedEvent(saved.getId(), saved.getName(), saved.getSpecies(), saved.getBreed());
+        kafkaTemplate.send(Topics.ANIMAL_ADDED, String.valueOf(event.animalId()), event);
+        return saved;
     }
 
     @CacheEvict(value = "animals", key = "#id")

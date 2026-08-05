@@ -6,13 +6,16 @@ import io.github.ally412.shelter.animal.Species;
 import io.github.ally412.shelter.animal.Status;
 import io.github.ally412.shelter.care.dto.MedicalRecordRequest;
 import io.github.ally412.shelter.common.web.Constants;
+import io.github.ally412.shelter.messaging.AnimalAddedEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Container;
@@ -36,6 +39,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 @WithMockUser(roles = "STAFF")   // every care endpoint requires STAFF
 public class AnimalCareControllerIT {
+
+    // These tests don't exercise messaging. Without this, saveAnimal's send() would look for a
+    // broker at the localhost:9092 default — passing only on a machine where Compose happens to
+    // be up, and blocking for max.block.ms then failing on CI. Publishing is covered by
+    // AnimalEventPublishingIT, which runs a real broker.
+    @MockitoBean
+    KafkaTemplate<String, AnimalAddedEvent> kafkaTemplate;
     protected static final String BASE_PATH = Constants.ANIMALS;
     @Container
     @ServiceConnection

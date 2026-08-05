@@ -1,0 +1,123 @@
+# k8s/kafka.yaml
+# In-cluster Kafka broker (KRaft mode — no ZooKeeper). Three objects:
+#   PVC        → durable storage so topics/messages survive pod restarts
+#   Deployment → the cp-kafka:7.8.0 pod, single broker
+#   Service    → stable DNS name "kafka" the app connects to
+# This is the cluster twin of the "kafka" service in docker-compose.yml.
+# Apply before the app:
+#   kubectl apply -f k8s/kafka.yaml
+# ---------------------------------------------------------------------------
+
+apiVersion: v1
+kind: PersistentVolumeClaim      # asks the cluster for a chunk of disk
+metadata:
+  name: kafka-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce              # mounted read-write by a single node (fine for one broker)
+  resources:
+    requests:
+      storage: 2Gi               # log segments grow faster than you expect
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  labels:
+    app: kafka
+spec:
+  replicas: 1                    # exactly one broker (scaling KRaft needs a StatefulSet — see notes)
+  strategy:
+    type: Recreate               # kill the old pod BEFORE starting the new one.
+    # why: a ReadWriteOnce volume can only be mounted by one pod. The default
+    # RollingUpdate would wait for the new pod to be ready while the old one
+    # still holds the disk — a deadlock.
+  selector:
+    matchLabels:
+      app: kafka                 # this Deployment manages pods with label app=kafka
+  template:
+    metadata:
+      labels:
+        app: kafka               # ← MUST match selector above AND the Service selector below
+    spec:
+      securityContext:
+        fsGroup: 1000            # the cp-kafka image runs as uid 1000 ("appuser").
+        # Without this the mounted volume is root-owned and the broker cannot write to it.
+      containers:
+        - name: kafka
+          image: confluentinc/cp-kafka:7.8.0   # same image/tag as docker-compose.yml
+          ports:
+            - containerPort: 9092    # PLAINTEXT — client traffic
+            - containerPort: 9093    # CONTROLLER — internal KRaft quorum, never dialled by clients
+          env:
+            # --- KRaft identity: this single pod is both broker and controller ---
+            - name: KAFKA_NODE_ID
+              value: "1"                       # quotes: env values must be strings
+            - name: KAFKA_PROCESS_ROLES
+              value: broker,controller
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: 1@localhost:9093          # localhost is CORRECT here — the controller
+                                               # quorum is this pod talking to itself
+            - name: CLUSTER_ID
+              value: 5L6g3nShT-eMCtK--X86sw    # same id as compose; formats the log dir on first boot
+
+            # --- Listeners: the part that differs from docker-compose ---
+            - name: KAFKA_LISTENERS
+              value: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+              # bind on all interfaces so the Service can reach us
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: PLAINTEXT://kafka:9092
+              # ★ THE critical line. On connect, the broker replies "use this address
+              # from now on" — so it must be the in-cluster DNS name, NOT localhost.
+              # compose advertises localhost because the client is your laptop;
+              # here the client is another pod, for which localhost means itself.
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: CONTROLLER
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: PLAINTEXT
+
+            # --- Single-broker sizing: nothing can be replicated to a second node ---
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
+            - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS
+              value: "0"                       # don't wait 3s before forming a consumer group
+
+            - name: KAFKA_LOG_DIRS
+              value: /var/lib/kafka/data/logs   # a SUBdirectory of the mount, not its root
+              # why: the volume root gets a lost+found dir that confuses log-dir formatting
+              # (same trick as PGDATA in postgres.yaml)
+          volumeMounts:
+            - name: kafka-storage
+              mountPath: /var/lib/kafka/data
+          readinessProbe:                # "can clients connect yet?" (gates traffic)
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 20      # KRaft format + startup takes a while on first boot
+            periodSeconds: 5
+          livenessProbe:                 # "is it still alive?" (restarts pod if it fails)
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 60
+            periodSeconds: 15
+      volumes:
+        - name: kafka-storage
+          persistentVolumeClaim:
+            claimName: kafka-pvc         # binds the mount above to the PVC we declared
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka                    # ← THIS name is the app's KAFKA_BOOTSTRAP_SERVERS host
+spec:
+  selector:
+    app: kafka                   # routes to pods labeled app=kafka (the Deployment's pods)
+  ports:
+    - port: 9092                 # port the Service exposes
+      targetPort: 9092           # port on the pod it forwards to
+  type: ClusterIP                # internal-only; reachable from other pods, not your laptop
