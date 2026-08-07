@@ -5,15 +5,16 @@ import io.github.ally412.shelter.animal.dto.AnimalRequest;
 import io.github.ally412.shelter.animal.dto.AnimalSearchCriteria;
 import io.github.ally412.shelter.common.DeleteResult;
 import io.github.ally412.shelter.messaging.AnimalAddedEvent;
-import io.github.ally412.shelter.messaging.Topics;
+import io.github.ally412.shelter.messaging.OutboxEvent;
+import io.github.ally412.shelter.messaging.OutboxRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -22,11 +23,13 @@ import java.util.Optional;
 @Service
 public class AnimalService {
     private final AnimalRepository animalRepository;
-    private final KafkaTemplate<String, AnimalAddedEvent> kafkaTemplate;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
-    public AnimalService(AnimalRepository animalRepository, KafkaTemplate<String, AnimalAddedEvent> kafkaTemplate) {
+    public AnimalService(AnimalRepository animalRepository, OutboxRepository outboxRepository, ObjectMapper objectMapper) {
         this.animalRepository = animalRepository;
-        this.kafkaTemplate = kafkaTemplate;
+        this.outboxRepository = outboxRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Cacheable(value = "animals", unless = "#result == null")
@@ -36,10 +39,23 @@ public class AnimalService {
     public List<Animal> getAnimals() {
         return animalRepository.findAll();
     }
+    @Transactional
     public Animal saveAnimal(AnimalRequest animalRequest) {
         Animal saved = animalRepository.save(AnimalConverter.toNewAnimal(animalRequest));
-        AnimalAddedEvent event = new AnimalAddedEvent(saved.getId(), saved.getName(), saved.getSpecies(), saved.getBreed());
-        kafkaTemplate.send(Topics.ANIMAL_ADDED, String.valueOf(event.animalId()), event);
+        AnimalAddedEvent event = new AnimalAddedEvent(
+                saved.getId(),
+                saved.getName(),
+                saved.getSpecies(),
+                saved.getBreed(),
+                saved.getStatus(),
+                saved.getIntakeDate());
+        String eventPayload = objectMapper.writeValueAsString(event);
+        OutboxEvent outboxEvent = new OutboxEvent();
+        outboxEvent.setAggregateType("Animal");
+        outboxEvent.setAggregateId(String.valueOf(saved.getId()));
+        outboxEvent.setEventType("AnimalAdded");
+        outboxEvent.setPayload(eventPayload);
+        outboxRepository.save(outboxEvent);
         return saved;
     }
 
