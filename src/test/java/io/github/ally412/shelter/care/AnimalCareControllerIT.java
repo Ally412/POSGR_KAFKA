@@ -6,7 +6,6 @@ import io.github.ally412.shelter.animal.Species;
 import io.github.ally412.shelter.animal.Status;
 import io.github.ally412.shelter.care.dto.MedicalRecordRequest;
 import io.github.ally412.shelter.common.web.Constants;
-import io.github.ally412.shelter.messaging.AnimalAddedEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,12 +39,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WithMockUser(roles = "STAFF")   // every care endpoint requires STAFF
 public class AnimalCareControllerIT {
 
-    // These tests don't exercise messaging. Without this, saveAnimal's send() would look for a
-    // broker at the localhost:9092 default — passing only on a machine where Compose happens to
-    // be up, and blocking for max.block.ms then failing on CI. Publishing is covered by
-    // AnimalEventPublishingIT, which runs a real broker.
+    // These tests don't exercise messaging. saveAnimal only writes an outbox row now, but
+    // @EnableScheduling means OutboxRelay ticks here too and would reach for a broker at the
+    // localhost:9092 default — green only where Compose happens to be up, and stalling for
+    // max.block.ms on CI. Publishing is covered by OutboxRelayIT against a real broker.
     @MockitoBean
-    KafkaTemplate<String, AnimalAddedEvent> kafkaTemplate;
+    KafkaTemplate<String, String> kafkaTemplate;
     protected static final String BASE_PATH = Constants.ANIMALS;
     @Container
     @ServiceConnection

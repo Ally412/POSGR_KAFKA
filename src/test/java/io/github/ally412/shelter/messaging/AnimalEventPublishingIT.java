@@ -64,7 +64,10 @@ class AnimalEventPublishingIT {
         // partition, so per-animal ordering holds even though the topic has three.
         assertThat(record.key()).isEqualTo(String.valueOf(saved.getId()));
         assertThat(objectMapper.readValue(record.value(), AnimalAddedEvent.class))
-                .isEqualTo(new AnimalAddedEvent(saved.getId(), "Rex", Species.DOG, "Husky"));
+                .isEqualTo(new AnimalAddedEvent(saved.getId(), "Rex", Species.DOG, "Husky",
+                        // read back from the entity: intakeDate is stamped server-side with
+                        // LocalDate.now(), so a literal date would start failing tomorrow
+                        saved.getStatus(), saved.getIntakeDate()));
     }
 
     @Test
