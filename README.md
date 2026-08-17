@@ -9,6 +9,31 @@ A system to manage animal shelters with:
 - Medical records
 - Event-driven architecture (Kafka for events)
 
+## Architecture
+
+Two independent applications, sharing no code and no database:
+
+| | Repo | Role |
+|---|---|---|
+| **shelter** | this one | REST API, owns the animal data, publishes domain events |
+| **notifier** | [POSGR_KAFKA_NOTIFIER](https://github.com/Ally412/POSGR_KAFKA_NOTIFIER) | consumes those events into its own read model, mails health alert digests |
+
+Events are published with a **transactional outbox**: a request writes its domain row and an
+outbox row in one commit, and a scheduled relay ships the outbox to Kafka afterwards. That
+trades "instant" for "never lost" — the alternative, writing to the database and Kafka in the
+same method, can succeed at one and fail at the other with nothing to reconcile from.
+
+Three topics, each keyed by animal id so one animal's events share a partition and stay ordered:
+
+| Topic | Published when |
+|---|---|
+| `shelter.animal.added` | an animal is created |
+| `shelter.animal.health-alert` | a medical record is added with urgency above ROUTINE |
+| `shelter.adoption.completed` | an adoption is recorded |
+
+**[KafkaPipeline.md](KafkaPipeline.md) traces one event the whole way** — request, outbox,
+relay, broker, consumer, dead letter topic — and lists which file does what.
+
 ## Learning Goals
 - **PostgreSQL:** Entity relationships, migrations, complex queries, testing
 - **Kafka:** Producers, consumers, event-driven architecture, error handling
@@ -51,7 +76,7 @@ cd POSGR_KAFKA
 #    so a fresh clone must create its own — idempotent, skips if present)
 scripts/generate-keys.sh
 
-# 3. start Postgres (docker-compose)
+# 3. start Postgres and Kafka (docker-compose)
 docker compose up -d
 
 # 4. build (also runs the tests)
@@ -62,6 +87,18 @@ docker compose up -d
 ```
 The app starts on `http://localhost:8080`. Flyway applies migrations on startup and
 `ddl-auto=validate` checks the schema matches the JPA entities.
+
+Kafka runs in the same compose file and is shared infrastructure — the notifier connects to
+the same broker. To see events being consumed, clone the notifier alongside this repo and
+start it too; it brings its own database on port 5433.
+
+### API documentation
+
+Swagger UI: **http://localhost:8080/swagger-ui.html** (raw document at `/v3/api-docs`).
+
+Both are public, everything else needs a bearer token. Get one from `POST /auth/login`
+(`admin` / `admin` is seeded on first start), paste it into the **Authorize** button, and the
+"Try it out" buttons will work.
 
 ### Run the tests
 ```bash
@@ -83,6 +120,10 @@ local Postgres on `localhost:5432`.
 | `DB_NAME`     | `shelter`   | Database name      |
 | `DB_USER`     | `shelter`   | Database username  |
 | `DB_PASSWORD` | `shelter`   | Database password  |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka broker(s) to bootstrap from |
+| `KAFKA_REPLICAS` | `1`         | Replication factor for created topics |
+| `RSA_PRIVATE_KEY` | `classpath:certs/privateKey.pem` | JWT signing key (a file path in k8s) |
+| `RSA_PUBLIC_KEY`  | `classpath:certs/publicKey.pem`  | JWT verification key |
 
 These map to Spring's `spring.datasource.*`. In tests, Testcontainers supplies its
 own connection via `@ServiceConnection`, ignoring these.
