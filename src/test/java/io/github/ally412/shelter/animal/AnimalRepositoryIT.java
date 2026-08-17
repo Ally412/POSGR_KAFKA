@@ -4,6 +4,7 @@ import io.github.ally412.shelter.adoption.Adoption;
 import io.github.ally412.shelter.care.Caretaker;
 import io.github.ally412.shelter.care.CaretakerLoad;
 import io.github.ally412.shelter.care.MedicalRecord;
+import io.github.ally412.shelter.care.Urgency;
 import io.github.ally412.shelter.care.Specialization;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -244,6 +245,7 @@ class AnimalRepositoryIT {
         r.setDescription(description);
         r.setVetName(vetName);
         r.setTreatmentDate(date);
+        r.setUrgency(Urgency.ROUTINE);
         entityManager.persist(r);
     }
 
