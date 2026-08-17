@@ -46,6 +46,8 @@ public class OutboxRelay {
         for (OutboxEvent event : outboxEvents) {
             String topic = switch (event.getEventType()) {
                 case "AnimalAdded" -> Topics.ANIMAL_ADDED;
+                case "HealthAlert" -> Topics.HEALTH_ALERT;
+                case "AdoptionCompleted" -> Topics.ADOPTION_COMPLETED;
                 default -> throw new IllegalStateException("No topic mapped for event type " + event.getEventType());
             };
             ProducerRecord<String, String> record = new
