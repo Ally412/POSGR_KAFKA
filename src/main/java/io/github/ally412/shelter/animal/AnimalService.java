@@ -4,6 +4,8 @@ import io.github.ally412.shelter.animal.dto.AnimalConverter;
 import io.github.ally412.shelter.animal.dto.AnimalRequest;
 import io.github.ally412.shelter.animal.dto.AnimalSearchCriteria;
 import io.github.ally412.shelter.common.DeleteResult;
+import io.github.ally412.shelter.common.web.Constants;
+import io.github.ally412.shelter.common.web.IllegalStatusTransitionException;
 import io.github.ally412.shelter.messaging.AnimalAddedEvent;
 import io.github.ally412.shelter.messaging.OutboxEvent;
 import io.github.ally412.shelter.messaging.OutboxRepository;
@@ -75,6 +77,12 @@ public class AnimalService {
     @CacheEvict(value = "animals", key = "#id")
     @Transactional
     public Optional<Animal> updateStatus(Long id, Status status) {
+        // ADOPTED is not a status you set — it is the outcome of recording an adoption,
+        // which also writes the adoption row and publishes the event.
+        if (status == Status.ADOPTED) {
+            throw new IllegalStatusTransitionException(
+                    "Use POST " + Constants.ANIMALS + "/{id}/adoption to record an adoption.");
+        }
         return animalRepository.findById(id)
                 .map(animal -> {
                     animal.setStatus(status);

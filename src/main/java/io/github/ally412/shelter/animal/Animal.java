@@ -33,10 +33,14 @@ public class Animal {
     @NotNull
     @Enumerated(EnumType.STRING)
     private Status status;
-    @OneToMany(mappedBy = "animal")
+    // Children of the Animal aggregate: they have no life of their own, so the animal's
+    // lifecycle is theirs. orphanRemoval makes dropping one from the set delete its row —
+    // without it, removing from a mappedBy collection emits no SQL at all.
+    @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<MedicalRecord> medicalRecords = new HashSet<>();
-    @OneToOne(mappedBy = "animal")
+    @OneToOne(mappedBy = "animal", cascade = CascadeType.ALL, orphanRemoval = true)
     private Adoption adoption;
+    // No cascade: caretakers are shared between animals and outlive any one of them.
     @ManyToMany
     @JoinTable(
             name = "animal_caretaker",

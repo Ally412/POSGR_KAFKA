@@ -94,6 +94,30 @@ public class ApiExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(NoSuchAdopterException.class)
+    public ProblemDetail handleNoSuchAdopterException(NoSuchAdopterException ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        pd.setTitle("Wrong id");
+        pd.setDetail(ex.getMessage());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalStatusTransitionException.class)
+    public ProblemDetail handleIllegalStatusTransition(IllegalStatusTransitionException ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setTitle("Illegal status transition");
+        pd.setDetail(ex.getMessage());
+        return pd;
+    }
+
+    @ExceptionHandler(AnimalAlreadyAdoptedException.class)
+    public ProblemDetail handleAnimalAlreadyAdopted(AnimalAlreadyAdoptedException ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        pd.setTitle("Already adopted");
+        pd.setDetail(ex.getMessage());
+        return pd;
+    }
+
 
 
 
