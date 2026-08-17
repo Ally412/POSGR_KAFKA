@@ -9,6 +9,7 @@ public class AnimalCareConverter {
         medicalRecord.setDescription(request.description());
         medicalRecord.setTreatmentDate(request.treatmentDate());
         medicalRecord.setVetName(request.vetName());
+        medicalRecord.setUrgency(request.urgency());
         return medicalRecord;
     }
     public static MedicalRecordResponse toMedicalRecordResponse(MedicalRecord medicalRecord) {
@@ -17,7 +18,8 @@ public class AnimalCareConverter {
                 medicalRecord.getAnimal().getId(),
                 medicalRecord.getDescription(),
                 medicalRecord.getTreatmentDate(),
-                medicalRecord.getVetName()
+                medicalRecord.getVetName(),
+                medicalRecord.getUrgency()
         );
     }
     public static CaretakerResponse toCaretakerResponse(Caretaker caretaker) {

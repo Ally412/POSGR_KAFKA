@@ -17,6 +17,9 @@ public class MedicalRecord {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    private Urgency urgency;
     @ManyToOne
     @JoinColumn(name = "animal_id")
     private Animal animal;
@@ -25,7 +28,7 @@ public class MedicalRecord {
     @NotNull
     private LocalDate treatmentDate;
     @NotBlank
-    private String vetName; // doctor name
+    private String vetName;
 
 
 }

@@ -4,6 +4,7 @@ import io.github.ally412.shelter.animal.Animal;
 import io.github.ally412.shelter.animal.AnimalRepository;
 import io.github.ally412.shelter.animal.Species;
 import io.github.ally412.shelter.animal.Status;
+import io.github.ally412.shelter.care.Urgency;
 import io.github.ally412.shelter.care.dto.MedicalRecordRequest;
 import io.github.ally412.shelter.common.web.Constants;
 import org.junit.jupiter.api.Test;
@@ -66,7 +67,7 @@ public class AnimalCareControllerIT {
     public void addMedicalRecordCreatesRecord() throws Exception {
         Long animalId = persistAnimal();
         MedicalRecordRequest request =
-                new MedicalRecordRequest("Vaccination", LocalDate.of(2026, 5, 1), "Dr. House");
+                new MedicalRecordRequest("Vaccination", LocalDate.of(2026, 5, 1), "Dr. House", Urgency.ROUTINE);
         mockMvc.perform(post(BASE_PATH + "/{animalId}/medical-records", animalId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -78,13 +79,14 @@ public class AnimalCareControllerIT {
                 .andExpect(jsonPath("$.animalId").value(animalId))
                 .andExpect(jsonPath("$.description").value("Vaccination"))
                 .andExpect(jsonPath("$.treatmentDate").value("2026-05-01"))
-                .andExpect(jsonPath("$.vetName").value("Dr. House"));
+                .andExpect(jsonPath("$.vetName").value("Dr. House"))
+                .andExpect(jsonPath("$.urgency").value("ROUTINE"));
     }
 
     @Test
     public void addMedicalRecordForMissingAnimalReturns404() throws Exception {
         MedicalRecordRequest request =
-                new MedicalRecordRequest("Vaccination", LocalDate.of(2026, 5, 1), "Dr. House");
+                new MedicalRecordRequest("Vaccination", LocalDate.of(2026, 5, 1), "Dr. House", Urgency.ROUTINE);
         mockMvc.perform(post(BASE_PATH + "/{animalId}/medical-records", 999L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -97,7 +99,7 @@ public class AnimalCareControllerIT {
     public void addInvalidMedicalRecordReturns400() throws Exception {
         Long animalId = persistAnimal();
         String body = """
-                { "description": "", "treatmentDate": null, "vetName": "" }
+                { "description": "", "treatmentDate": null, "vetName": "", "urgency": null }
                 """;
         mockMvc.perform(post(BASE_PATH + "/{animalId}/medical-records", animalId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -106,7 +108,8 @@ public class AnimalCareControllerIT {
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errors.description").value("must not be blank"))
                 .andExpect(jsonPath("$.errors.treatmentDate").value("must not be null"))
-                .andExpect(jsonPath("$.errors.vetName").value("must not be blank"));
+                .andExpect(jsonPath("$.errors.vetName").value("must not be blank"))
+                .andExpect(jsonPath("$.errors.urgency").value("must not be null"));
     }
 
     @Test
@@ -184,6 +187,7 @@ public class AnimalCareControllerIT {
         record.setDescription(description);
         record.setTreatmentDate(LocalDate.now());
         record.setVetName(vetName);
+        record.setUrgency(Urgency.ROUTINE);
         return medicalRecordRepository.save(record).getId();
     }
 }
