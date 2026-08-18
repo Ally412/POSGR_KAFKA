@@ -47,6 +47,10 @@ public class SecurityConfig {
         return  http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
+                        // The API description is public; the API itself is not. Reading it tells
+                        // you which endpoints exist, which a client needs before it can log in.
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(s ->
                         s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
